@@ -1,0 +1,91 @@
+import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import '../services/auth_service.dart';
+
+class OrderService extends ChangeNotifier {
+
+  final ApiService apiService = ApiService();
+  final AuthService authService = AuthService();
+
+  List<OrderModel> orders = [];
+
+  bool isLoading = false;
+
+  Future<void> fetchOrders( int userId, String? token) async {
+
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await apiService.get("/fetchOrderPerUser/$userId", token:token);
+
+      orders = (response as List)
+          .map((order) => OrderModel.fromJson(order))
+          .toList();
+
+    } catch (e) {
+      print("Error fetching Orders: $e");
+
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  //new order
+  Future<bool> addOrder(Map< String, dynamic> data, String? token) async {
+
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      await apiService.post("/saveNewOrder", data, token: token);
+      return true;
+
+    } catch (e) {
+      print("Error creating new order: $e");
+      return false;
+
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+}  
+
+//Model
+class OrderModel{
+  final int id;
+  final int productId;
+  final String productName;
+  final int quantity;
+  final String orderStatus;  
+  final double price;
+  final String image;
+  final DateTime createdAt;
+
+  OrderModel({
+    required this.productId,
+    required this.quantity,
+    required this.id,
+    required this.productName,
+    required this.price,
+    required this.image,
+    this.orderStatus = "",
+    required this.createdAt,
+
+  });
+
+  factory OrderModel.fromJson(Map<String, dynamic> json){
+    return OrderModel(
+      productId: json['product_id'] ?? 0,
+      quantity: json['quantity'] ?? 0,
+      orderStatus: json['order_status'] == 0 ? 'Fulfilled' : 'Processing',
+      id: json["id"] ?? 0,
+      productName: json["product"]["name"]?? "",
+      price: (json["product"]["price"] as num).toDouble(),
+      image: json["product"]["image"] ?? "",
+      createdAt: DateTime.parse(json["created_at"]),
+    );
+  }
+}
